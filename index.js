@@ -188,7 +188,6 @@ const addData = async () => {
                 connection.query(`INSERT INTO ${addChoice} SET ?`, newEmployee, function (err, res) {
                     if (err) throw err;
                     console.log("employee added!")
-                    //console.log(`${newEmployee.first_name} ${newEmployee.last_name} was added to DB.`);
                     askUser();
                 });
             })
@@ -304,4 +303,69 @@ const deleteData = async () => {
             askUser();
             break;
     }
+}
+
+const changeData = async () => {
+
+    connection.query("SELECT title, id FROM roles; SELECT first_name, last_name, id FROM employees", async (err, nameList) => {
+        if (err) throw err;
+    
+        const changeEmployee = await inquirer.prompt([
+            {
+                type: 'list',
+                message: `Which employee's records are you looking to update?`,
+                name: 'name',
+                choices: nameList[1].map(item => item.name)
+
+            },
+            {
+                type: 'list',
+                message: 'What do you want to update?',
+                name: 'fieldChoice',
+                choices: ['role', 'manager']
+            }
+        ])
+        const { newRoleManager } = await inquirer.prompt([
+            {
+                type: 'list',
+                message: `Make your new ${changeEmployee.fieldChoice} choice below.`,
+                name: 'newRoleManager',
+                choices: () => {
+                    switch (changeEmployee.fieldChoice) {
+                        case 'role':
+                            
+                            return nameList[0].map(item => item.title)
+                            break;
+                        default:
+                            
+                            const arr = nameList[1].map(item => item.name);
+                          
+                            arr.push('no boss');
+                           
+                            arr.filter(item => item !== changeEmployee.name)
+                            return arr;
+                            break;
+                    }
+                }
+            }
+        ])
+
+        const employeeId = nameList[1].filter(person => person.name === changeEmployee.name).map(item => item.id)[0]
+        const newVal = newRoleManager;
+        const queryObj = {};
+
+        if (changeEmployee.fieldChoice === 'role') {
+            queryObj.role_id = nameList[0].filter(role => role.title === newRoleManager).map(item => item.id)[0]
+        } else {
+            (newRoleManager === 'no boss') ? queryObj.manager_id = null : queryObj.manager_id = nameList[1].filter(person => person.name === newRoleManager).map(item => item.id)[0];
+        }
+
+        //update database
+        connection.query(`UPDATE employees SET ? WHERE id=?`, [queryObj, employeeId], function (err, res) {
+            if (err) throw err;
+        
+            askUser();
+        });
+    })
+
 }
